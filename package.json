@@ -1,0 +1,44 @@
+{
+  "name": "blink-suite",
+  "version": "2.4.0",
+  "description": "High-performance EVM NFT minting, copy-minting, and wallet automation engine",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/cli/index.ts",
+    "start": "tsx src/cli/index.ts",
+    "bot": "tsx src/bot/index.ts",
+    "test": "tsx src/run-test.ts",
+    "web": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build",
+    "web:start": "npm --prefix web run start",
+    "build": "tsc"
+  },
+  "keywords": [
+    "nft",
+    "minting-bot",
+    "evm",
+    "ethereum",
+    "base",
+    "ink",
+    "viem"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@clack/prompts": "^1.8.1",
+    "@grammyjs/menu": "^1.5.0",
+    "chalk": "^6.0.1",
+    "cli-table3": "^0.6.5",
+    "commander": "^15.0.0",
+    "dotenv": "^18.0.8",
+    "grammy": "^1.46.0",
+    "viem": "^2.57.7",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
