@@ -145,7 +145,7 @@ export default function BlinkApp() {
   const [newSchedulePrice, setNewSchedulePrice] = useState('0.00');
 
   // Contract Mint Form State
-  const [mintContractAddr, setMintContractAddr] = useState('0xa16e02E87b7454126E5E10d957A927A7F5B5d2be');
+  const [mintContractAddr, setMintContractAddr] = useState('');
   const [mintChain, setMintChain] = useState<'ethereum' | 'base' | 'robinhood' | 'ink' | 'arc'>('base');
   const [mintQuantity, setMintQuantity] = useState(1);
   const [mintWalletFilter, setMintWalletFilter] = useState<'all' | '60' | 'n'>('all');
@@ -324,57 +324,59 @@ export default function BlinkApp() {
           <div className="overflow-hidden flex-1 relative mr-4">
             <div className="animate-marquee flex items-center gap-8 whitespace-nowrap">
               <div className="flex items-center gap-3">
-                <span className="text-[#6b5ef0] font-bold shrink-0">⚡ [Offer Sweep]</span>
-                <span className="text-white font-medium">Stash It</span>
-                <span>~0.01143 ETH (~$27.36)</span>
-                <span className="text-emerald-400">+18%</span>
-                <span className="text-zinc-500">3m ago</span>
+                <span className="text-[#6b5ef0] font-bold shrink-0">⚡ [Blink Network]</span>
+                <span className="text-white font-medium">Base L2 Gas:</span>
+                <span className="text-emerald-400 font-bold">{gasPrices.base || '0.002 Gwei'}</span>
               </div>
               <span className="text-zinc-700">•</span>
               <div className="flex items-center gap-3">
-                <span className="text-cyan-400 font-bold shrink-0">💎 Astrokidofficial</span>
-                <span>~$22.95</span>
-                <span className="text-zinc-500">26m ago</span>
+                <span className="text-cyan-400 font-bold shrink-0">🔷 Arbitrum One:</span>
+                <span className="text-white">{gasPrices.arbitrum || '0.01 Gwei'}</span>
               </div>
               <span className="text-zinc-700">•</span>
               <div className="flex items-center gap-3">
-                <span className="text-amber-400 font-bold shrink-0">🟣 Ink Genesis</span>
-                <span>~0.08 ETH (~$191.50)</span>
-                <span className="text-emerald-400 font-bold">SNIPED</span>
+                <span className="text-purple-400 font-bold shrink-0">🟣 Ink Chain:</span>
+                <span className="text-white">{gasPrices.ink || '0.001 Gwei'}</span>
+                <span className="text-emerald-400 font-bold">READY</span>
               </div>
               <span className="text-zinc-700">•</span>
               <div className="flex items-center gap-3">
-                <span className="text-[#9b92ff] font-bold shrink-0">🐋 Pranksy Mirror</span>
-                <span>3x Azuki Elemental</span>
-                <span className="text-emerald-400">+0.12 ETH profit</span>
+                <span className="text-[#9b92ff] font-bold shrink-0">Ξ Ethereum:</span>
+                <span className="text-white">{gasPrices.ethereum || '12.4 Gwei'}</span>
+              </div>
+              <span className="text-zinc-700">•</span>
+              <div className="flex items-center gap-3">
+                <span className="text-emerald-400 font-bold shrink-0">Fleet Active:</span>
+                <span className="text-white">{wallets.length} Wallets</span>
               </div>
 
               {/* Duplicate track for seamless infinite loop */}
               <span className="text-zinc-700">•</span>
               <div className="flex items-center gap-3">
-                <span className="text-[#6b5ef0] font-bold shrink-0">⚡ [Offer Sweep]</span>
-                <span className="text-white font-medium">Stash It</span>
-                <span>~0.01143 ETH (~$27.36)</span>
-                <span className="text-emerald-400">+18%</span>
-                <span className="text-zinc-500">3m ago</span>
+                <span className="text-[#6b5ef0] font-bold shrink-0">⚡ [Blink Network]</span>
+                <span className="text-white font-medium">Base L2 Gas:</span>
+                <span className="text-emerald-400 font-bold">{gasPrices.base || '0.002 Gwei'}</span>
               </div>
               <span className="text-zinc-700">•</span>
               <div className="flex items-center gap-3">
-                <span className="text-cyan-400 font-bold shrink-0">💎 Astrokidofficial</span>
-                <span>~$22.95</span>
-                <span className="text-zinc-500">26m ago</span>
+                <span className="text-cyan-400 font-bold shrink-0">🔷 Arbitrum One:</span>
+                <span className="text-white">{gasPrices.arbitrum || '0.01 Gwei'}</span>
               </div>
               <span className="text-zinc-700">•</span>
               <div className="flex items-center gap-3">
-                <span className="text-amber-400 font-bold shrink-0">🟣 Ink Genesis</span>
-                <span>~0.08 ETH (~$191.50)</span>
-                <span className="text-emerald-400 font-bold">SNIPED</span>
+                <span className="text-purple-400 font-bold shrink-0">🟣 Ink Chain:</span>
+                <span className="text-white">{gasPrices.ink || '0.001 Gwei'}</span>
+                <span className="text-emerald-400 font-bold">READY</span>
               </div>
               <span className="text-zinc-700">•</span>
               <div className="flex items-center gap-3">
-                <span className="text-[#9b92ff] font-bold shrink-0">🐋 Pranksy Mirror</span>
-                <span>3x Azuki Elemental</span>
-                <span className="text-emerald-400">+0.12 ETH profit</span>
+                <span className="text-[#9b92ff] font-bold shrink-0">Ξ Ethereum:</span>
+                <span className="text-white">{gasPrices.ethereum || '12.4 Gwei'}</span>
+              </div>
+              <span className="text-zinc-700">•</span>
+              <div className="flex items-center gap-3">
+                <span className="text-emerald-400 font-bold shrink-0">Fleet Active:</span>
+                <span className="text-white">{wallets.length} Wallets</span>
               </div>
             </div>
           </div>
@@ -1779,12 +1781,12 @@ export default function BlinkApp() {
                   <div className="nb-card p-4 text-xs font-mono text-zinc-400 space-y-1">
                     <div className="flex justify-between">
                       <span>Target Fleet:</span>
-                      <span className="text-white">5 Mint Wallets</span>
+                      <span className="text-white">{wallets.filter(w => !w.isMaster).length || 1} Mint Wallets</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Total to Disperse:</span>
                       <span className="text-cyan-400 font-bold">
-                        {((Number(disperseAmount) || 0) * 5).toFixed(4)}{' '}
+                        {((Number(disperseAmount) || 0) * (wallets.filter(w => !w.isMaster).length || 1)).toFixed(4)}{' '}
                         {disperseChain === 'arc' ? 'USDC' : 'ETH'}
                       </span>
                     </div>
@@ -2911,15 +2913,25 @@ export default function BlinkApp() {
               )}
 
               {subTab === 'history' && (
-                <div className="nb-card p-6 space-y-3 text-xs text-zinc-400">
-                  <div className="text-white font-semibold">Live Mempool Detections</div>
-                  <div className="p-3 rounded-lg bg-black/40 border border-white/[0.06] flex items-center justify-between">
-                    <div>
-                      <div className="text-white">Pranksy Alpha mirrored on Base</div>
-                      <div className="text-zinc-500 text-[11px] font-mono">Tx: 0x3c2a9f14... (Gas priority: 1.1x)</div>
+                <div className="nb-card p-6 text-center text-xs text-zinc-500">
+                  {userActivity.filter(a => a.type.toLowerCase().includes('copy') || a.type.toLowerCase().includes('whale')).length > 0 ? (
+                    <div className="space-y-3 text-left">
+                      <div className="text-white font-semibold">Live Mempool Detections</div>
+                      {userActivity
+                        .filter(a => a.type.toLowerCase().includes('copy') || a.type.toLowerCase().includes('whale'))
+                        .map(act => (
+                          <div key={act.id} className="p-3 rounded-lg bg-black/40 border border-white/[0.06] flex items-center justify-between">
+                            <div>
+                              <div className="text-white">{act.title}</div>
+                              <div className="text-zinc-500 text-[11px] font-mono">Tx: {act.txHash ? `${act.txHash.slice(0, 10)}...` : 'Pending'}</div>
+                            </div>
+                            <span className="text-emerald-400 font-bold">{act.status}</span>
+                          </div>
+                        ))}
                     </div>
-                    <span className="text-emerald-400 font-bold">CONFIRMED</span>
-                  </div>
+                  ) : (
+                    'No mempool mirror transactions detected yet. Target wallet activity will stream here in real time.'
+                  )}
                 </div>
               )}
 
