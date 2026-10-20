@@ -260,13 +260,16 @@ export default function BlinkApp() {
       });
       const data = await res.json();
       if (data.success) {
-        setAlertMessage(data.message);
-        loadData();
-        setTimeout(() => setAlertMessage(null), 6000);
+        setAlertMessage(`✅ ${data.message}`);
+        await loadData();
+        setTimeout(() => setAlertMessage(null), 8000);
+      } else {
+        setAlertMessage(`⚠️ ${data.error || 'Failed to execute batch disperse.'}`);
+        setTimeout(() => setAlertMessage(null), 8000);
       }
     } catch {
-      setAlertMessage('Failed to execute batch disperse.');
-      setTimeout(() => setAlertMessage(null), 4000);
+      setAlertMessage('⚠️ Network error communicating with disperse engine.');
+      setTimeout(() => setAlertMessage(null), 5000);
     } finally {
       setIsDispersing(false);
     }
@@ -281,14 +284,111 @@ export default function BlinkApp() {
       });
       const data = await res.json();
       if (data.success) {
-        setAlertMessage(data.message);
-        loadData();
-        setTimeout(() => setAlertMessage(null), 6000);
+        setAlertMessage(`✅ ${data.message}`);
+        await loadData();
+        setTimeout(() => setAlertMessage(null), 8000);
+      } else {
+        setAlertMessage(`⚠️ ${data.error || 'Failed to execute sweep.'}`);
+        setTimeout(() => setAlertMessage(null), 8000);
       }
     } catch {
-      setAlertMessage('Failed to execute sweep.');
-      setTimeout(() => setAlertMessage(null), 4000);
+      setAlertMessage('⚠️ Network error executing sweep.');
+      setTimeout(() => setAlertMessage(null), 5000);
     }
+  };
+
+  const handleGenerateWallet = async (isMaster: boolean = false) => {
+    try {
+      const res = await fetch('/api/wallets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'generate', isMaster }),
+      }).then(r => r.json());
+      if (res.success) {
+        setAlertMessage(`✅ ${res.message}`);
+        await loadData();
+      } else {
+        setAlertMessage(`⚠️ ${res.error || 'Failed to generate wallet.'}`);
+      }
+    } catch {
+      setAlertMessage('⚠️ Error creating encrypted wallet.');
+    }
+    setTimeout(() => setAlertMessage(null), 4000);
+  };
+
+  const handleBatchGenerate = async (count: number = 5) => {
+    try {
+      const res = await fetch('/api/wallets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'batch', count }),
+      }).then(r => r.json());
+      if (res.success) {
+        setAlertMessage(`✅ ${res.message}`);
+        await loadData();
+      } else {
+        setAlertMessage(`⚠️ ${res.error || 'Failed to batch generate wallets.'}`);
+      }
+    } catch {
+      setAlertMessage('⚠️ Error batch generating wallets.');
+    }
+    setTimeout(() => setAlertMessage(null), 4000);
+  };
+
+  const handleImportPrivateKey = async (privateKey: string) => {
+    if (!privateKey) return;
+    try {
+      const res = await fetch('/api/wallets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'import', privateKey }),
+      }).then(r => r.json());
+      if (res.success) {
+        setAlertMessage(`✅ ${res.message}`);
+        await loadData();
+      } else {
+        setAlertMessage(`⚠️ ${res.error || 'Failed to import private key.'}`);
+      }
+    } catch {
+      setAlertMessage('⚠️ Error importing private key.');
+    }
+    setTimeout(() => setAlertMessage(null), 4000);
+  };
+
+  const handleDeleteWallet = async (address: string) => {
+    try {
+      const res = await fetch(`/api/wallets?address=${encodeURIComponent(address)}`, {
+        method: 'DELETE',
+      }).then(r => r.json());
+      if (res.success) {
+        setAlertMessage(`✅ ${res.message}`);
+        await loadData();
+      } else {
+        setAlertMessage(`⚠️ ${res.error || 'Failed to delete wallet.'}`);
+      }
+    } catch {
+      setAlertMessage('⚠️ Error deleting wallet.');
+    }
+    setTimeout(() => setAlertMessage(null), 4000);
+  };
+
+  const handleSetMasterWallet = async (address: string) => {
+    try {
+      const res = await fetch('/api/wallets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'setMaster', address }),
+      }).then(r => r.json());
+      if (res.success) {
+        setAlertMessage(`✅ ${res.message}`);
+        await loadData();
+      } else {
+        setAlertMessage(`⚠️ ${res.error || 'Failed to update master wallet.'}`);
+      }
+    } catch {
+      setAlertMessage('⚠️ Error setting master wallet.');
+    }
+    setTimeout(() => setAlertMessage(null), 4000);
   };
 
   const formatCountdown = (targetTime: number) => {
@@ -2152,32 +2252,43 @@ export default function BlinkApp() {
                 <h3 className="text-sm font-semibold text-white">
                   Active fleet managed via encrypted AES-256-GCM keystore.
                 </h3>
-                <div className="mt-4 flex items-center gap-3">
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
                   <button
-                    onClick={() => {
-                      setAlertMessage('Generated 5 additional encrypted Mint Wallets!');
-                      loadData();
-                      setTimeout(() => setAlertMessage(null), 4000);
-                    }}
+                    onClick={() => handleGenerateWallet(false)}
                     className="nb-btn-primary px-4 py-2 text-xs flex items-center gap-1.5"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    Create
+                    Create 1 Wallet
+                  </button>
+                  <button
+                    onClick={() => handleBatchGenerate(5)}
+                    className="nb-btn-primary px-4 py-2 text-xs flex items-center gap-1.5 bg-[#6b5ef0]/80"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    Batch Gen (5)
                   </button>
                   <button
                     onClick={() => setShowImportKeyModal(true)}
-                    className="nb-btn-primary px-4 py-2 text-xs flex items-center gap-1.5 bg-[#6b5ef0]/80"
+                    className="nb-btn-primary px-4 py-2 text-xs flex items-center gap-1.5 bg-white/[0.08] hover:bg-white/[0.15]"
                   >
                     <span>↓</span>
-                    Import
+                    Import Private Key
                   </button>
                 </div>
               </div>
 
               {/* Active Wallets Fleet Table */}
               <div className="nb-card p-5 space-y-3">
-                <div className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-                  Registered Wallets ({wallets.length})
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                    Registered Wallets ({wallets.length})
+                  </div>
+                  <button
+                    onClick={() => loadData()}
+                    className="text-xs text-[#6b5ef0] hover:underline"
+                  >
+                    ↻ Refresh Balances
+                  </button>
                 </div>
 
                 <div className="overflow-x-auto font-mono text-xs">
@@ -2189,47 +2300,77 @@ export default function BlinkApp() {
                         <th className="pb-2.5 font-semibold">ETH Balance</th>
                         <th className="pb-2.5 font-semibold">USDC</th>
                         <th className="pb-2.5 font-semibold">Role</th>
+                        <th className="pb-2.5 font-semibold text-center">Manage</th>
                         <th className="pb-2.5 font-semibold text-right">Explorer</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/[0.04]">
-                      {wallets.map(w => (
-                        <tr key={w.id} className="hover:bg-white/[0.02]">
-                          <td className="py-2.5 font-sans font-medium text-white">{w.label}</td>
-                          <td className="py-2.5">
-                            <button
-                              onClick={() => handleCopy(w.address)}
-                              className="text-zinc-300 hover:text-white flex items-center gap-1.5"
-                            >
-                              <span>{w.address.slice(0, 6)}...{w.address.slice(-4)}</span>
-                              <Copy className="w-3 h-3 text-zinc-600" />
-                            </button>
-                          </td>
-                          <td className="py-2.5 text-cyan-400 font-semibold">{w.ethBalance} ETH</td>
-                          <td className="py-2.5 text-zinc-400">${w.usdcBalance}</td>
-                          <td className="py-2.5">
-                            {w.isMaster ? (
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">
-                                MASTER
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
-                                MINT FLEET
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2.5 text-right">
-                            <a
-                              href={`https://basescan.org/address/${w.address}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-[#6b5ef0] hover:underline"
-                            >
-                              Scan
-                            </a>
+                      {wallets.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="py-8 text-center text-zinc-500">
+                            No wallets in keystore yet. Click &quot;Create 1 Wallet&quot; or &quot;Batch Gen (5)&quot; to generate your encrypted fleet.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        wallets.map(w => (
+                          <tr key={w.id} className="hover:bg-white/[0.02]">
+                            <td className="py-2.5 font-sans font-medium text-white">{w.label}</td>
+                            <td className="py-2.5">
+                              <button
+                                onClick={() => handleCopy(w.address)}
+                                className="text-zinc-300 hover:text-white flex items-center gap-1.5"
+                                title="Click to copy address"
+                              >
+                                <span>{w.address.slice(0, 6)}...{w.address.slice(-4)}</span>
+                                <Copy className="w-3 h-3 text-zinc-600" />
+                              </button>
+                            </td>
+                            <td className="py-2.5 text-cyan-400 font-semibold">{w.ethBalance} ETH</td>
+                            <td className="py-2.5 text-zinc-400">${w.usdcBalance}</td>
+                            <td className="py-2.5">
+                              {w.isMaster ? (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">
+                                  MASTER
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
+                                  MINT FLEET
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                {!w.isMaster && (
+                                  <button
+                                    onClick={() => handleSetMasterWallet(w.address)}
+                                    className="text-[10px] text-amber-400 hover:underline"
+                                    title="Set as master vault"
+                                  >
+                                    Set Master
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleDeleteWallet(w.address)}
+                                  className="text-[10px] text-rose-400 hover:underline"
+                                  title="Delete wallet from keystore"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                            <td className="py-2.5 text-right">
+                              <a
+                                href={`https://basescan.org/address/${w.address}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[#6b5ef0] hover:underline"
+                              >
+                                Scan
+                              </a>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -3131,30 +3272,40 @@ export default function BlinkApp() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
           <div className="nb-card p-6 max-w-md w-full shadow-2xl relative">
             <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
-              <h3 className="text-sm font-bold text-white">Add Wallet</h3>
+              <h3 className="text-sm font-bold text-white">Add Encrypted Wallet</h3>
               <button onClick={() => setShowAddWalletModal(false)} className="text-zinc-400 hover:text-white">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="py-4 space-y-3">
               <button
-                onClick={() => {
-                  setAlertMessage('Generated new encrypted Mint Wallet!');
-                  loadData();
+                onClick={async () => {
                   setShowAddWalletModal(false);
-                  setTimeout(() => setAlertMessage(null), 3000);
+                  await handleGenerateWallet(false);
                 }}
-                className="nb-btn-primary w-full py-2.5 text-xs font-semibold"
+                className="nb-btn-primary w-full py-2.5 text-xs font-semibold flex items-center justify-center gap-2"
               >
-                Generate New Mint Wallet
+                <Plus className="w-3.5 h-3.5" />
+                Generate 1 Mint Fleet Wallet
+              </button>
+              <button
+                onClick={async () => {
+                  setShowAddWalletModal(false);
+                  await handleBatchGenerate(5);
+                }}
+                className="nb-btn-primary w-full py-2.5 text-xs font-semibold bg-[#6b5ef0]/80 hover:bg-[#6b5ef0] flex items-center justify-center gap-2"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                Batch Generate 5 Fleet Wallets
               </button>
               <button
                 onClick={() => {
                   setShowAddWalletModal(false);
                   setShowImportKeyModal(true);
                 }}
-                className="w-full py-2.5 text-xs font-semibold bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 rounded-lg transition-colors"
+                className="w-full py-2.5 text-xs font-semibold bg-white/[0.05] hover:bg-white/[0.1] text-zinc-300 rounded-lg transition-colors flex items-center justify-center gap-2"
               >
+                <span>↓</span>
                 Import Existing Private Key
               </button>
             </div>
@@ -3175,6 +3326,7 @@ export default function BlinkApp() {
               </button>
             </div>
             <div className="py-4 space-y-3">
+              <label className="block text-zinc-400 text-xs">Enter EVM Private Key (0x...):</label>
               <input
                 type="password"
                 placeholder="0x..."
@@ -3183,12 +3335,12 @@ export default function BlinkApp() {
                 className="w-full bg-[#080A10] border border-white/[0.08] rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-[#6b5ef0]"
               />
               <button
-                onClick={() => {
+                onClick={async () => {
+                  if (!newKeyInput.trim()) return;
                   setShowImportKeyModal(false);
+                  const key = newKeyInput.trim();
                   setNewKeyInput('');
-                  setAlertMessage('Imported and encrypted private key in keystore.');
-                  loadData();
-                  setTimeout(() => setAlertMessage(null), 3000);
+                  await handleImportPrivateKey(key);
                 }}
                 className="nb-btn-primary w-full py-2 text-xs font-semibold"
               >
@@ -3270,31 +3422,31 @@ export default function BlinkApp() {
 
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (newScheduleContract) {
-                    const newDrop: DropItem = {
-                      id: 'drop-' + Date.now(),
-                      name: newScheduleName || 'Scheduled Collection',
-                      creator: '0x' + newScheduleContract.slice(2, 8) + '...',
-                      chain: newScheduleChain,
-                      chainName: chains.find(c => c.slug === newScheduleChain)?.name || 'Base',
-                      contract: newScheduleContract,
-                      mintPrice: `${newSchedulePrice || '0.00'} ${newScheduleChain === 'arc' ? 'USDC' : 'ETH'}`,
-                      mintPriceWei: '0',
-                      maxPerWallet: 3,
-                      totalItems: 5000,
-                      mintedCount: 0,
-                      mintedPct: 0,
-                      startTime: Date.now() + 15 * 60 * 1000,
-                      phase: 'Public Live in 15m',
-                      badge: 'UPCOMING',
-                      status: 'UPCOMING',
-                    };
-                    setDrops([newDrop, ...drops]);
+                    try {
+                      const res = await fetch('/api/schedule', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          name: newScheduleName || 'Scheduled Drop',
+                          contractAddress: newScheduleContract,
+                          chainSlug: newScheduleChain,
+                          price: newSchedulePrice || '0.00',
+                        }),
+                      }).then(r => r.json());
+                      if (res.success) {
+                        setAlertMessage(`✅ ${res.message}`);
+                        await loadData();
+                      } else {
+                        setAlertMessage(`⚠️ ${res.error || 'Failed to schedule drop.'}`);
+                      }
+                    } catch {
+                      setAlertMessage('⚠️ Network error saving scheduled drop.');
+                    }
                     setShowNewScheduleModal(false);
                     setNewScheduleName('');
                     setNewScheduleContract('');
-                    setAlertMessage(`Scheduled drop '${newDrop.name}' added to execution queue.`);
                     setTimeout(() => setAlertMessage(null), 4000);
                   }
                 }}
@@ -3343,28 +3495,30 @@ export default function BlinkApp() {
               </div>
 
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (newCopyAddress) {
-                    setCopyTrackers([
-                      {
-                        id: 'cp-' + Date.now(),
-                        label: newCopyLabel || 'Target Alpha',
-                        address: newCopyAddress,
-                        ens: newCopyAddress.includes('.eth') ? newCopyAddress : '',
-                        mirrorFreeOnly: true,
-                        maxSpendEth: '0.02',
-                        totalMirrored: 0,
-                        active: true,
-                        chain: 'base',
-                        lastAction: 'Watching target wallet (0m ago)',
-                      },
-                      ...copyTrackers,
-                    ]);
+                    try {
+                      const res = await fetch('/api/targets', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          address: newCopyAddress,
+                          label: newCopyLabel || 'Target Alpha',
+                        }),
+                      }).then(r => r.json());
+                      if (res.success) {
+                        setAlertMessage(`✅ ${res.message}`);
+                        await loadData();
+                      } else {
+                        setAlertMessage(`⚠️ ${res.error || 'Failed to add target.'}`);
+                      }
+                    } catch {
+                      setAlertMessage('⚠️ Network error adding target wallet.');
+                    }
                     setShowAddCopyModal(false);
                     setNewCopyAddress('');
                     setNewCopyLabel('');
-                    setAlertMessage('Now tracking target wallet in mempool.');
-                    setTimeout(() => setAlertMessage(null), 3000);
+                    setTimeout(() => setAlertMessage(null), 4000);
                   }
                 }}
                 className="nb-btn-primary w-full py-2 text-xs font-semibold mt-2"

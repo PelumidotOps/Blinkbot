@@ -173,9 +173,27 @@ bot.command(['start', 'menu'], async (ctx) => {
   });
 });
 
-bot.command('wallets', async (ctx) => {
+bot.command(['wallets', 'wallet'], async (ctx) => {
   if (!vault.isUnlockedStatus()) return void (await ctx.reply(LOCKED_MSG, { parse_mode: 'HTML' }));
   await ctx.reply(walletsText(10), { parse_mode: 'HTML', reply_markup: getWalletsKeyboard() });
+});
+
+bot.command(['disperse', 'fund'], async (ctx) => {
+  if (!vault.isUnlockedStatus()) return void (await ctx.reply(LOCKED_MSG, { parse_mode: 'HTML' }));
+  const main = vault.getMasterWallet();
+  const textArgs = ctx.message?.text?.split(' ').slice(1) || [];
+  
+  if (textArgs.length > 0 && !isNaN(parseFloat(textArgs[0]))) {
+    return void (await fundWallets(ctx, textArgs[0]));
+  }
+
+  await ctx.reply(
+    `💸 <b>FUND & DISPERSE</b>\n\n` +
+      `• <b>Main Wallet:</b> <code>${main ? main.address : 'Not set (use /setmain)'}</code>\n` +
+      `• <b>Mint Wallets:</b> <code>${vault.getBurners().length}</code>\n\n` +
+      `Send <code>/disperse 0.01</code> or choose an option below:`,
+    { parse_mode: 'HTML', reply_markup: getDisperseKeyboard() }
+  );
 });
 
 bot.command(['stats', 'analytics'], async (ctx) => {
@@ -555,7 +573,8 @@ export async function startBot() {
   // Shows the command list in Telegram's "/" menu
   await bot.api.setMyCommands([
     { command: 'start', description: 'Open the main menu' },
-    { command: 'wallets', description: 'View your wallets' },
+    { command: 'wallets', description: 'View and manage your wallets' },
+    { command: 'disperse', description: 'Fund fleet wallets in one transaction' },
     { command: 'mint', description: 'Mint an NFT from a contract' },
     { command: 'opensea', description: 'Mint an OpenSea drop' },
     { command: 'follow', description: 'Follow a wallet to copy its mints' },

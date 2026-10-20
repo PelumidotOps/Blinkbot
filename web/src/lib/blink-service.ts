@@ -15,7 +15,7 @@ if (fs.existsSync(rootEnvPath)) {
 
 export interface StoredWallet {
   address: `0x${string}`;
-  encryptedPrivateKey: string;
+  privateKey: `0x${string}`;
   label: string;
   createdAt: number;
   isMaster?: boolean;
@@ -23,11 +23,11 @@ export interface StoredWallet {
 
 export interface EncryptedVaultPayload {
   version: number;
-  kdf: string;
   salt: string;
   iv: string;
   authTag: string;
-  data: string;
+  ciphertext?: string;
+  data?: string;
 }
 
 export interface ChainInfo {
@@ -136,13 +136,18 @@ export function unlockVault(password: string): { success: boolean; error?: strin
     const salt = Buffer.from(payload.salt, 'hex');
     const iv = Buffer.from(payload.iv, 'hex');
     const authTag = Buffer.from(payload.authTag, 'hex');
+    const hexData = payload.ciphertext || payload.data;
+
+    if (!hexData) {
+      throw new Error('No ciphertext found in vault file.');
+    }
 
     const key = crypto.scryptSync(password, salt, 32);
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(authTag);
 
     const decrypted = Buffer.concat([
-      decipher.update(Buffer.from(payload.data, 'hex')),
+      decipher.update(Buffer.from(hexData, 'hex')),
       decipher.final(),
     ]);
 
@@ -157,10 +162,41 @@ export function unlockVault(password: string): { success: boolean; error?: strin
 
 // Attempt auto-unlock with .env VAULT_PASSWORD if not already unlocked
 export function ensureVaultUnlocked(): boolean {
-  if (memoryUnlocked) return true;
+  if (memoryUnlocked && memoryWallets.length > 0) return true;
   const pw = process.env.VAULT_PASSWORD || 'BlinkMasterVault2026!';
   const res = unlockVault(pw);
   return res.success;
+}
+
+export function saveVault(wallets: StoredWallet[], password?: string): boolean {
+  const pw = password || process.env.VAULT_PASSWORD || 'BlinkMasterVault2026!';
+  const salt = crypto.randomBytes(16);
+  const iv = crypto.randomBytes(12);
+  const key = crypto.scryptSync(pw, salt, 32);
+
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const plaintext = Buffer.from(JSON.stringify(wallets), 'utf-8');
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+
+  const payload = {
+    version: 1,
+    salt: salt.toString('hex'),
+    iv: iv.toString('hex'),
+    authTag: authTag.toString('hex'),
+    ciphertext: ciphertext.toString('hex'),
+  };
+
+  const vaultPath = getVaultPath();
+  fs.writeFileSync(vaultPath, JSON.stringify(payload, null, 2), 'utf-8');
+  memoryWallets = wallets;
+  memoryUnlocked = true;
+  return true;
+}
+
+export function getRawWallets(): StoredWallet[] {
+  ensureVaultUnlocked();
+  return memoryWallets;
 }
 
 export function getWalletsList() {
@@ -168,10 +204,94 @@ export function getWalletsList() {
   return memoryWallets.map((w, idx) => ({
     id: idx + 1,
     address: w.address,
-    label: w.label || (w.isMaster ? 'Main Wallet' : `Mint Wallet #${idx + 1}`),
+    label: w.label || (w.isMaster ? 'Master Vault' : `Mint Fleet #${idx + 1}`),
     isMaster: !!w.isMaster,
     createdAt: w.createdAt,
   }));
+}
+
+export function createBurnerWallet(label?: string, isMaster: boolean = false): StoredWallet {
+  ensureVaultUnlocked();
+  const privateKey = generatePrivateKey();
+  const account = privateKeyToAccount(privateKey);
+  const existingCount = memoryWallets.length;
+
+  const newWallet: StoredWallet = {
+    address: account.address,
+    privateKey,
+    label: label || (isMaster ? 'Master Vault' : `Mint Fleet #${existingCount + 1}`),
+    createdAt: Date.now(),
+    isMaster,
+  };
+
+  const updated = [...memoryWallets, newWallet];
+  saveVault(updated);
+  return newWallet;
+}
+
+export function batchGenerateBurners(count: number, prefix: string = 'Mint Fleet'): StoredWallet[] {
+  ensureVaultUnlocked();
+  const newWallets: StoredWallet[] = [];
+  const existingCount = memoryWallets.length;
+
+  for (let i = 0; i < count; i++) {
+    const privateKey = generatePrivateKey();
+    const account = privateKeyToAccount(privateKey);
+    const wallet: StoredWallet = {
+      address: account.address,
+      privateKey,
+      label: `${prefix} #${existingCount + i + 1}`,
+      createdAt: Date.now(),
+      isMaster: false,
+    };
+    newWallets.push(wallet);
+  }
+
+  const updated = [...memoryWallets, ...newWallets];
+  saveVault(updated);
+  return newWallets;
+}
+
+export function importPrivateKey(privateKey: `0x${string}`, label?: string, isMaster: boolean = false): StoredWallet {
+  ensureVaultUnlocked();
+  const account = privateKeyToAccount(privateKey);
+  const existing = memoryWallets.find(w => w.address.toLowerCase() === account.address.toLowerCase());
+  if (existing) {
+    throw new Error(`Wallet ${account.address} already exists in keystore.`);
+  }
+
+  const newWallet: StoredWallet = {
+    address: account.address,
+    privateKey,
+    label: label || (isMaster ? 'Master Vault' : `Imported Wallet #${memoryWallets.length + 1}`),
+    createdAt: Date.now(),
+    isMaster,
+  };
+
+  const updated = [...memoryWallets, newWallet];
+  saveVault(updated);
+  return newWallet;
+}
+
+export function deleteWalletByAddress(address: string): boolean {
+  ensureVaultUnlocked();
+  const initialLength = memoryWallets.length;
+  const filtered = memoryWallets.filter(w => w.address.toLowerCase() !== address.toLowerCase());
+  if (filtered.length !== initialLength) {
+    saveVault(filtered);
+    return true;
+  }
+  return false;
+}
+
+export function setMasterWalletByAddress(address: string): boolean {
+  ensureVaultUnlocked();
+  const updated = memoryWallets.map(w => ({
+    ...w,
+    isMaster: w.address.toLowerCase() === address.toLowerCase(),
+  }));
+  saveVault(updated);
+  return true;
 }
 
 export function getAnalyticsSummary() {

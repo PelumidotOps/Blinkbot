@@ -1,25 +1,121 @@
 import { NextResponse } from 'next/server';
 import fs from 'node:fs';
-import { getAnalyticsPath } from '@/lib/blink-service';
+import path from 'node:path';
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  formatEther,
+  parseEther,
+  defineChain,
+} from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { getRawWallets, getAnalyticsPath, SUPPORTED_CHAINS } from '@/lib/blink-service';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { chainSlug, contractAddress, mintType, quantity, gasMultiplier, walletCount } = body;
+    const {
+      chainSlug = 'base',
+      contractAddress,
+      mintType = 'Contract Mint',
+      quantity = 1,
+      gasMultiplier = 1.2,
+      walletCount = 5,
+      pricePerToken = '0',
+    } = body;
 
     if (!contractAddress || !contractAddress.startsWith('0x') || contractAddress.length !== 42) {
       return NextResponse.json(
-        { success: false, error: 'Invalid contract address. Must be a 42-char 0x EVM hex address.' },
+        { success: false, error: 'Invalid contract address. Must be a valid 42-char 0x EVM address.' },
         { status: 400 }
       );
     }
 
-    const executionDuration = Math.floor(Math.random() * 80) + 120; // 120ms - 200ms
-    const count = Number(walletCount) || 5;
-    const gasPerWallet = BigInt(84000) * BigInt(Math.floor((Number(gasMultiplier) || 1.1) * 10));
-    const totalGasSpentWei = (gasPerWallet * BigInt(count)).toString();
+    const allWallets = getRawWallets();
+    if (allWallets.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'No wallets configured in keystore. Please create or import wallets in the Wallets tab first.' },
+        { status: 400 }
+      );
+    }
 
-    // Append to analytics.json
+    const fleetWallets = allWallets.filter(w => !w.isMaster);
+    const targetWallets = (fleetWallets.length > 0 ? fleetWallets : allWallets).slice(0, Number(walletCount) || 5);
+
+    const chainConfig = SUPPORTED_CHAINS[chainSlug] || SUPPORTED_CHAINS.base;
+    const viemChain = defineChain({
+      id: chainConfig.id,
+      name: chainConfig.name,
+      nativeCurrency: chainConfig.nativeCurrency,
+      rpcUrls: {
+        default: { http: [chainConfig.rpcUrl] },
+      },
+    });
+
+    const publicClient = createPublicClient({
+      chain: viemChain,
+      transport: http(chainConfig.rpcUrl, { timeout: 8000 }),
+    });
+
+    // Check balances of target wallets
+    const balances = await Promise.all(
+      targetWallets.map(w => publicClient.getBalance({ address: w.address }))
+    );
+
+    const totalBalance = balances.reduce((acc, b) => acc + b, BigInt(0));
+    const priceWei = parseEther(pricePerToken || '0') * BigInt(quantity);
+
+    if (totalBalance === BigInt(0)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Fleet wallets currently have 0.0000 ETH on ${chainConfig.name}. Please go to the Disperse tab and fund your fleet wallets before broadcasting mint transactions.`,
+          walletsNeededFunded: targetWallets.map(w => w.address),
+        },
+        { status: 400 }
+      );
+    }
+
+    // Common standard mint function signatures
+    const candidateSignatures = [
+      'function mint(uint256 quantity) payable',
+      'function publicMint(uint256 quantity) payable',
+      'function mint() payable',
+      'function publicMint() payable',
+    ];
+
+    let successCount = 0;
+    let revertedCount = 0;
+    const txHashes: string[] = [];
+    const startTime = Date.now();
+
+    for (const w of targetWallets) {
+      try {
+        const account = privateKeyToAccount(w.privateKey);
+        const walletClient = createWalletClient({
+          account,
+          chain: viemChain,
+          transport: http(chainConfig.rpcUrl, { timeout: 15000 }),
+        });
+
+        // Attempt contract call
+        const txHash = await walletClient.sendTransaction({
+          to: contractAddress as `0x${string}`,
+          value: priceWei,
+          data: ('0x1249c58b' + BigInt(quantity).toString(16).padStart(64, '0')) as `0x${string}`, // mint(uint256) selector
+        });
+
+        txHashes.push(txHash);
+        successCount++;
+      } catch (err: unknown) {
+        revertedCount++;
+      }
+    }
+
+    const durationMs = Date.now() - startTime;
+
+    // Log to analytics.json
     const analyticsPath = getAnalyticsPath();
     let events: any[] = [];
     if (fs.existsSync(analyticsPath)) {
@@ -33,14 +129,14 @@ export async function POST(req: Request) {
     const newEvent = {
       id: 'tx-' + Math.random().toString(36).substring(2, 8),
       timestamp: Date.now(),
-      chainSlug: chainSlug || 'base',
+      chainSlug,
       contractAddress,
-      walletCount: count,
-      successCount: count,
-      revertedCount: 0,
-      totalGasSpentWei,
-      durationMs: executionDuration,
-      mintType: mintType || 'Direct Mint',
+      walletCount: targetWallets.length,
+      successCount,
+      revertedCount,
+      totalGasSpentWei: (BigInt(84000) * BigInt(targetWallets.length) * BigInt(Math.floor(gasMultiplier * 10))).toString(),
+      durationMs,
+      mintType,
       quantityPerWallet: Number(quantity) || 1,
     };
 
@@ -49,14 +145,19 @@ export async function POST(req: Request) {
     fs.writeFileSync(analyticsPath, JSON.stringify(events, null, 2), 'utf-8');
 
     return NextResponse.json({
-      success: true,
-      message: `Mint executed successfully across ${count} Mint Wallets!`,
-      txHash: '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+      success: successCount > 0,
+      message: successCount > 0
+        ? `Successfully broadcasted mint across ${successCount} fleet wallets!`
+        : `Transaction reverted on ${chainConfig.name}. Please check contract mint status, public sale stage, or price.`,
+      txHashes,
+      txHash: txHashes[0] || undefined,
       chainSlug,
       contractAddress,
-      walletsUsed: count,
-      executionDurationMs: executionDuration,
-      status: 'CONFIRMED',
+      walletsUsed: targetWallets.length,
+      successCount,
+      revertedCount,
+      executionDurationMs: durationMs,
+      status: successCount > 0 ? 'CONFIRMED' : 'REVERTED',
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
