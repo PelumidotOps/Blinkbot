@@ -1991,7 +1991,9 @@ export default function BlinkApp() {
 
                   <div className="flex items-center justify-between text-xs font-mono text-zinc-400 pt-2 border-t border-white/[0.05]">
                     <span>Total Fleet Native ETH:</span>
-                    <span className="text-white font-bold">0.3842 ETH</span>
+                    <span className="text-white font-bold">
+                      {mintWallets.reduce((acc, w) => acc + parseFloat(w.ethBalance || '0'), 0).toFixed(4)} ETH
+                    </span>
                   </div>
 
                   <div className="pt-2">
@@ -2129,7 +2131,7 @@ export default function BlinkApp() {
                       <Brush className="w-3.5 h-3.5 text-[#6b5ef0]" />
                       Sweep Candidates
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#6b5ef0]/20 text-[#9b92ff]">
-                        14 NFTs
+                        {mintWallets.reduce((acc, w) => acc + (w.nftsHeld || 0), 0)} NFTs
                       </span>
                     </span>
 
@@ -2143,13 +2145,17 @@ export default function BlinkApp() {
                   {/* Candidates Box */}
                   <div className="nb-card p-6 space-y-3">
                     <div className="text-xs text-zinc-400">
-                      Found 14 minted NFTs across your 5 sub-wallets ready for 1-click consolidation.
+                      {mintWallets.reduce((acc, w) => acc + (w.nftsHeld || 0), 0) > 0
+                        ? `Found ${mintWallets.reduce((acc, w) => acc + (w.nftsHeld || 0), 0)} minted NFTs across your ${mintWallets.length} sub-wallets ready for 1-click consolidation.`
+                        : `No pending NFTs detected in fleet wallets. As soon as mints confirm, they appear here.`}
                     </div>
                     <button
                       onClick={() => executeSweep('nft')}
                       className="nb-btn-primary px-5 py-2 text-xs"
                     >
-                      Sweep 14 NFTs to Master Wallet
+                      {mintWallets.reduce((acc, w) => acc + (w.nftsHeld || 0), 0) > 0
+                        ? `Sweep ${mintWallets.reduce((acc, w) => acc + (w.nftsHeld || 0), 0)} NFTs to Master Wallet`
+                        : 'Scan & Sweep NFTs to Master Wallet'}
                     </button>
                   </div>
                 </div>

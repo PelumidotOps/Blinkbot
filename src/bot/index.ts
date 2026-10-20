@@ -154,13 +154,12 @@ bot.command('unlock', async (ctx) => {
 
 bot.command('resetvault', async (ctx) => {
   const newPass = ctx.message?.text?.split(' ')[1];
-  if (!newPass || newPass.length < 4) {
-    await ctx.reply('🔒 <b>How to use:</b> <code>/resetvault &lt;new_password&gt;</code> (at least 4 characters)', { parse_mode: 'HTML' });
+  if (!newPass || newPass.length < 8) {
+    await ctx.reply('🔒 <b>How to use:</b> <code>/resetvault &lt;new_password&gt;</code> (at least 8 characters)', { parse_mode: 'HTML' });
     return;
   }
-  vault.unlock(newPass);
-  vault.save();
-  await ctx.reply(`✅ <b>Password updated.</b>\n\n` + getHeader(), {
+  vault.resetVault(newPass);
+  await ctx.reply(`✅ <b>Password updated and keystore re-encrypted.</b>\n\n` + getHeader(), {
     parse_mode: 'HTML',
     reply_markup: getMainMenuKeyboard(),
   });
